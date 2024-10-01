@@ -1,0 +1,78 @@
+.header {
+    margin-top: 15px;
+    position: relative;
+}
+
+.header::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 25px; 
+    padding: 1px; 
+    background:linear-gradient(180deg, #B049E1 0%, #612EF7 100%);; 
+    -webkit-mask: 
+       linear-gradient(#fff 0 0) content-box, 
+       linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude; 
+  }
+
+.header-logo {
+    width: 57px;
+    height: 50px;
+    
+}
+
+.company_name {
+    color: rgb(17, 17, 17);
+    font-family: DM Sans;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 10px;
+    letter-spacing: -1%;
+    text-align: left;
+}
+
+.header-right-side div img {
+    height: 27px;
+    width: 27px;
+}
+
+.search-btn {
+    position: relative;
+}
+
+.message-btn {
+    position: relative;
+    margin: 3px;
+}
+
+.notifications-btn {
+    position: relative;
+    margin: 3px;
+}
+
+.search-btn::before, .message-btn::before, .notifications-btn::before {
+    display: block;
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 25px; 
+    padding: 1px; 
+    background: linear-gradient(180deg, #B049E1 0%, #612EF7 100%); 
+    -webkit-mask: 
+       linear-gradient(#fff 0 0) content-box, 
+       linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude; 
+}
+
+.blacked-out {
+    background-color: #000;
+    border-radius: 25px;
+}
+
+.blacked-out img {
+    height: 27px;
+    width: 27px;
+}
