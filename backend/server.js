@@ -1,168 +1,138 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import {config as dotenvConfig} from 'dotenv';
-import userController from "./controllers/userController.js"
-import categoryController from './controllers/categoryController.js';
-import itemController from './controllers/itemController.js';
-import {wakeServer} from './utils/ping.js'
-import adminController from './controllers/adminController.js';
-import espforyouController from './controllers/espforyouController.js';
-import orderController from './controllers/orderController.js';
-import firstSliderController from './controllers/firstSliderController.js'
-import multer from 'multer'
-import path from 'path'
-import { fileURLToPath } from 'url';
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import { config as dotenvConfig } from "dotenv";
+import userController from "./controllers/userController.js";
+import statusController from "./controllers/statusController.js";
+import multer from "multer";
+import path from "path";
+import moderatorController from "./controllers/moderatorController.js";
+import reviewController from "./controllers/reviewController.js";
+import orderController from "./controllers/orderController.js";
+import categoryController from "./controllers/categoryController.js";
+import artistRequestController from "./controllers/artistRequestController.js";
+import customerRequestController from "./controllers/customerRequestController.js";
 
 dotenvConfig();
 
 const app = express();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        // Указываем директорию, куда сохранять файлы
-        cb(null, 'media/');
-    },
-    filename: function (req, file, cb) {
-        // Формируем уникальное имя файла
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        // Добавляем к имени файла оригинальное расширение
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
+  destination: function (req, file, cb) {
+    cb(null, "media/");
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
 });
-  
-const upload = multer({ storage: storage })
 
-console.log(__dirname)
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
-app.use(express.static('media'));
+app.use("/media", express.static("media"));
 app.use(express.json());
 app.use(cors());
-wakeServer();
-mongoose.connect(process.env.NODE_DB_URL)
-    .then(() => console.log('DB OK'))
-    .catch((err) => console.log('DB error', err));
+// app.use(express.json({ limit: "5mb" }));
+// app.use(express.urlencoded({ limit: "5mb", extended: true }));
 
+mongoose
+  .connect(process.env.NODE_DB_URL)
+  .then(() => console.log("DB OK"))
+  .catch((err) => console.log("DB error", err));
 
-
-const PORT = process.env.PORT || 4444
+const PORT = process.env.PORT || 4444;
 
 app.listen(PORT, (err) => {
-    if (err) {
-        console.log(err);
-        return;
-    }
-    console.log('Server is running');
+  if (err) {
+    console.log(err);
+    return;
+  }
+  console.log("Server is running");
 });
-
 
 //GET
 
-app.get('/')
+app.get("/", async (req, res) => {
+  res.json({ message: "nice" });
+});
 
+app.get("/user", userController.getUser);
 
+app.get("/status", statusController.getStatus);
 
-app.get('/categoryNameFromItemId', categoryController.getCategoryNameByItemId)
+app.get("/moderator", moderatorController.getModerator);
 
-app.get('/user', userController.getUser)
+app.get("/review", reviewController.getReview); // если передаем artistId то получим все отзывы артиста, если reviewId - конкретный отзыв
 
-app.get('/item', itemController.getItem)
+app.get("/order", orderController.getOrder); // если передаем в query orderId - то получим заказ, если artistId - все заказы артиста, если customerId - все заказы заказчика
 
-app.get('/category-items', itemController.getItemsByCategory)
+app.get("/category", categoryController.getCategory);
 
-app.get('/category', categoryController.getCategory)
+app.get("/artist-request", artistRequestController.getArtistRequest); // если передаем requestId то получим конкретный request, если artistId - то его requests, если categoryId - то все заявки с такой категорией
 
-app.get('/categories', categoryController.getCategories)
-
-app.get('/notifications', userController.getNotifications)
-
-app.get('/size', itemController.getSize)
-
-app.get('/especiallyforyouadmin', espforyouController.getAllEsp)
-
-app.get('/sizes', itemController.getAllSizes)
-
-app.get('/especiallyforyou', espforyouController.getEspeciallyForYou)
-
-app.get('/getitemcart', userController.getItemCartUser)
-
-app.get('/getuserwithfavorites', userController.getUserWithFavourites)
-
-app.get('/getorders', orderController.getOrders)
-
-app.get('/orders', orderController.getAllOrders)
-
-app.get('/getOrderAccountInfo', orderController.getOrderAccountInfo)
-
-app.get('/users', userController.getAllUsers)
-
-app.get('/getAllAdmins', adminController.getAllAdmins)
-
-app.get('/items', itemController.getAllItems)
-
-app.get('/getOrderById', orderController.getOrderById)
-
-app.get('/getAllImagesFirstSlider', firstSliderController.getAllImages)
+app.get("/customer-requests", customerRequestController.getCustomerRequest); // если передаем requestId то получим конкретный request, если customer - то его requests, если categoryId - то все заявки с такой категорией
 
 //POST
 
-app.post('/updateitemcart', itemController.updateItemCart)
+app.post("/upload", upload.array("files"), async (req, res) => {
+  try {
+    const fileUrls = req.files.map((file) => "/media/" + file.filename);
+    res.status(201).json({ filenames: fileUrls });
+  } catch (err) {
+    console.error("Failed to upload photo", err);
+    res.status(500).json({ error: "Failed to upload photo" });
+  }
+});
 
-app.post('/category', upload.single('file'), categoryController.addCategory)
+app.post("/status", statusController.addStatus);
 
-app.post('/size', itemController.addSize)
+app.post("/moderator", moderatorController.addModerator);
 
-app.post('/item', itemController.addItem)
+app.post("/review", reviewController.addReview);
 
-app.post('/notification', adminController.addUserNotification)
+app.post("/order", orderController.addOrder);
 
-app.post('/seenNotification', userController.seenNotification)
+app.post("/category", categoryController.addCategory);
 
-app.post('/updateuser', userController.updateUser)
+app.post("/artist-request", artistRequestController.addArtistRequest);
 
-app.post('/especiallyforyou', espforyouController.addEspeciallyForYou)
+app.post("/customer-request", customerRequestController.addCustomerRequest);
 
-app.post('/additemcart', userController.addItemCartUser)
+//PATCH
 
-app.post('/itemreview', userController.addItemReview)
+app.patch("/user", userController.updateUser);
 
-app.post('/additemtofavorites', itemController.addToFavorites)
+app.patch("/review", reviewController.updateReview);
 
-app.post('/addorder', orderController.addOrder)
+app.patch("/order", orderController.updateOrder);
 
-app.post('/deleteFromFavorites', itemController.deleteFromFavorites)
+app.patch("/artist-request", artistRequestController.updateArtistRequest);
 
-app.post('/updateItemPhoto', upload.single('file'), itemController.updatePhotoOfItem)
+app.patch("/customer-request", customerRequestController.updateCustomerRequest);
 
-app.post('/addImageOfItem', upload.single('file'), itemController.addPhotoOfItem)
+app.patch("/selectcity", userController.updateSelectCity);
 
-app.post('/loginUser', adminController.loginUser)
+//DELETE
 
-app.post('/addImageToFirstSlider', upload.single('file'), firstSliderController.addImage)
+app.delete("/status", statusController.deleteStatus);
 
-app.post('/updateImageFirstSlider', upload.single('file'), firstSliderController.updateImageFirstSlider)
+app.delete("/moderator", moderatorController.deleteModerator);
 
-app.post('/deleteImageFromFirstSlider', firstSliderController.deleteImageFromFirstSlider)
+app.delete("/review", reviewController.deleteReview);
 
-app.post('/addItemAdmin', adminController.addItem)
+app.delete("/order", orderController.deleteOrder);
 
-// DELETE
+app.delete("/category", categoryController.deleteCategory);
 
-app.post('/deleteCategoryAndItems', categoryController.deleteCategory)
+app.delete("/artist-request", artistRequestController.deleteArtistRequest);
 
-app.post('/deleteItemFromCart', itemController.deleteItemFromCart)
-
-app.post('/updatestatusorder', orderController.updateStatusOrder)
-
-app.put('/updateItemDetails', itemController.updateItem)
-
-app.put('/updateItemInOrder', orderController.updateItemInOrder)
-
-app.put('/updateCategoryImage', upload.single('file'), categoryController.updateImageCategory)
-
-app.post('/deleteImageOfItem', itemController.deleteImageOfItem)
-
-app.post('/deleteNotification', adminController.deleteNotification)
+app.delete(
+  "/customer-request",
+  customerRequestController.deleteCustomerRequest
+);

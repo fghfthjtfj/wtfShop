@@ -1,41 +1,33 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
+import Share from "../../images/share btn.svg"
 
-import HomeIcon from '../../images/home.svg'
-import FavoritesIcon from '../../images/favorite.svg'
-import BasketIcon from '../../images/basket.svg'
-import AccountIcon from '../../images/account.svg'
+const Footer = () => {
 
-import HomeIconActive from '../../images/home-active.svg'
-import FavoritesIconActive from '../../images/favorite-active.svg'
-import BasketIconActive from '../../images/basket-active.svg'
-import AccountIconActive from '../../images/account-active.svg'
+    const handleGoSupport = () => {
+        window.location.href='https://t.me/EventsApp_bot'
+    }
 
-import './footer.css'
-
-const Footer = (props) => {
-    const location = useLocation();
-    const currentPath = location.pathname;
-
-    return (
-        <div className="flex justify-center page">
-            <div className="footer w-[90%] fixed flex items-center justify-between">
-                <ul className="footer-nav flex justify-around w-full">
-                    <li>
-                        <NavLink to='/'><img src={currentPath === '/' ? HomeIconActive : HomeIcon} /></NavLink>
-                    </li>
-                    <li>
-                        <NavLink to='/favorites'><img src={currentPath === '/favorites' ? FavoritesIconActive : FavoritesIcon} /></NavLink>
-                    </li>
-                    <li>
-                        <NavLink to='/basket'><img src={currentPath === '/basket' ? BasketIconActive : BasketIcon} /></NavLink>
-                    </li>
-                    <li>
-                        <NavLink to='/account'><img src={currentPath === '/account' ? AccountIconActive : AccountIcon} /></NavLink>
-                    </li>
-                </ul>
+    return ( 
+        <div className=" bg-black px-[52px] py-[40px] text-white">
+            <div>
+                EVENTRA
+            </div>
+            <div className="flex text-[12px] mt-[21px]">
+                <div className="flex flex-col gap-[23px] justify-start items-start w-1/2">
+                    <Link to="/catalog-applications">Каталог заявок</Link>
+                    <Link to="/category-artist">Каталог артистов</Link>
+                    <Link to={"/share"} className="flex gap-[4px] items-start text-[12px]">
+                        <img src={Share} alt="share" /> <span>Рассказать другу</span>
+                    </Link>
+                </div>
+                <div className="flex flex-col gap-[23px] justify-start items-start w-1/2 pl-[30px]">
+                    <Link  to="/about" > О приложении </Link>
+                    <div onClick={()=>handleGoSupport()} > Поддержка </div>
+                    <Link to="https://taplink.cc/sirviler" > Колесо Сира:<br/> путь к мастерству </Link>
+                </div>
             </div>
         </div>
-    )
+     );
 }
-
+ 
 export default Footer;

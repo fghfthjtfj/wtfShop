@@ -1,155 +1,173 @@
-import CategorySchema from "../models/category.js";
-import ItemSchema from "../models/item.js";
+import CategorySсhema from "../models/category.js";
 
 export default class categoryController {
-  static getCategories = async (req, res) => {
+  static addCategory = async (req, res) => {
     try {
-      const categoriesData = await CategorySchema.find();
+      const { name, svgName, color } = req.body;
 
-      if (!categoriesData) {
-        return res.status(404).json({ message: "Ошибка получения информации" });
+      if (!name) {
+        return res.status(400).json({ message: "Error, check name" });
       }
 
-      res.status(200).json(categoriesData);
-    } catch (error) {
-      res.status(500).json({
-        error: "Возникла ошибка",
+      const category = new CategorySсhema({
+        name: name,
+        svgName: svgName,
+        color: color,
       });
-    }
-  };
 
-  static updateImageCategory = async (req, res) => {
-    try {
-      const { file } = req;
-      const { categoryId } = req.body;
-
-      // Проверяем, существует ли категория с указанным categoryId
-      const category = await CategorySchema.findById(categoryId);
-      if (!category) {
-        return res.status(404).json({ error: "Категория не найдена" });
-      }
-
-      // Обновляем ссылку на изображение
-      const imageUrl = "https://" + req.get("host") + "/" + file.filename;
-      category.image = imageUrl;
-
-      // Сохраняем изменения в базе данных
       await category.save();
 
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Изображение успешно обновлено",
-          imageUrl,
-        });
-    } catch (error) {
-      // Если произошла ошибка, отправляем соответствующий статус и сообщение об ошибке
-      console.error(error);
-      res.status(500).json({
-        error: "Возникла ошибка при обновлении изображения категории",
-      });
-    }
-  };
-
-  static getCategoryNameByItemId = async (req, res) => {
-    try {
-      const itemId = req.query.itemId;
-
-      if (!itemId) {
-        return res.status(400).json({ message: "Ошибка получения информации" });
-      }
-
-      const item = await ItemSchema.findOne({ _id: itemId });
-      if (!item) {
-        return res.status(404).json({ message: "Товар не найден" });
-      }
-      const category = await CategorySchema.findOne({ _id: item.category });
-
-      if (!category) {
-        return res.status(404).json({ message: "Категория не найдена" });
-      }
-
-      return res.status(200).json({ categoryName: category.title });
-    } catch (error) {
-      res.status(500).json({
-        error: "Возникла ошибка",
-      });
+      return res.status(201).json(category);
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ error: e.message });
     }
   };
 
   static getCategory = async (req, res) => {
     try {
-      const categoryName = req.query.categoryName;
-
-      if (!categoryName) {
-        return res.status(404).json({ message: "Ошибка получения категории" });
+      const { categoryId, city } = req.query;
+  
+      if (!categoryId) {
+        const categories = await CategorySсhema.aggregate([
+          {
+            $lookup: {
+              from: "artistrequests",
+              let: { categoryId: "$_id" },
+              pipeline: [
+                {
+                  $lookup: {
+                    from: "users", // используем коллекцию "users"
+                    localField: "artistId",
+                    foreignField: "_id",
+                    as: "artist",
+                  },
+                },
+                { $unwind: "$artist" }, // развернем массив artist, чтобы упростить фильтрацию
+                { $match: { $expr: { $in: ["$$categoryId", "$categoryId"] } } },
+                { $match: { approved: true, isRejected: false } },
+                { $match: { "artist.setCitySearch": city } }, // фильтрация по городу
+              ],
+              as: "artistRequests",
+            },
+          },
+          {
+            $lookup: {
+              from: "customerrequests",
+              let: { categoryId: "$_id" },
+              pipeline: [
+                {
+                  $lookup: {
+                    from: "users", // используем коллекцию "users"
+                    localField: "customerId",
+                    foreignField: "_id",
+                    as: "customer",
+                  },
+                },
+                { $unwind: "$customer" }, // развернем массив customer
+                { $match: { $expr: { $eq: ["$categoryId", "$$categoryId"] } } },
+                { $match: { approved: true, isReject: false } },
+                { $match: { "customer.setCitySearch": city } }, // фильтрация по городу
+              ],
+              as: "customerRequests",
+            },
+          },
+        ]);
+        return res.json(categories);
       }
-
-      const categoryData = await CategorySchema.findOne({
-        title: categoryName,
-      });
-
-      if (categoryData.length === 0) {
-        return res
-          .status(404)
-          .json({ message: "Не удалось найти необходимую категорию" });
+  
+      const category = await CategorySсhema.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(categoryId) } },
+        {
+          $lookup: {
+            from: "artistrequests",
+            let: { categoryId: "$_id" },
+            pipeline: [
+              {
+                $lookup: {
+                  from: "users",
+                  localField: "artistId",
+                  foreignField: "_id",
+                  as: "artist",
+                },
+              },
+              { $unwind: "$artist" },
+              { $match: { $expr: { $in: ["$$categoryId", "$categoryId"] } } },
+              { $match: { approved: true, isRejected: false } },
+              { $match: { "artist.setCitySearch": city } },
+            ],
+            as: "artistRequests",
+          },
+        },
+        {
+          $lookup: {
+            from: "customerrequests",
+            let: { categoryId: "$_id" },
+            pipeline: [
+              {
+                $lookup: {
+                  from: "users",
+                  localField: "customerId",
+                  foreignField: "_id",
+                  as: "customer",
+                },
+              },
+              { $unwind: "$customer" },
+              { $match: { $expr: { $eq: ["$categoryId", "$$categoryId"] } } },
+              { $match: { approved: true, isReject: false } },
+              { $match: { "customer.setCitySearch": city } },
+            ],
+            as: "customerRequests",
+          },
+        },
+        {
+          $addFields: {
+            countArtist: { $size: "$artistRequests" },
+            countCustomer: { $size: "$customerRequests" },
+          },
+        },
+        {
+          $project: {
+            artistRequests: 0, // Исключаем массив artistRequests из результата
+            customerRequests: 0, // Исключаем массив customerRequests из результата
+          },
+        },
+      ]);
+  
+      if (!category.length) {
+        return res.status(404).json({ message: "Category not found" });
       }
-      res.status(200).json(categoryData);
-    } catch (error) {
-      res.status(500).json({
-        error: "Возникла ошибка",
-      });
+  
+      return res.json(category[0]);
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ error: e.message });
     }
   };
-
-  static getCategoryItems = async (req, res) => {};
+  
 
   static deleteCategory = async (req, res) => {
-    const { categoryId } = req.body;
-
     try {
-        // Удаление категории по categoryId
-        await CategorySchema.findByIdAndDelete(categoryId);
-        
-        // Удаление всех айтемов из этой категории
-        await ItemSchema.deleteMany({ category: categoryId });
+      const { categoryId, active } = req.query;
 
-        res.status(200).json({ success: true, message: "Категория и все ее айтемы успешно удалены" });
-    } catch (error) {
-        console.error("Ошибка при удалении категории и айтемов:", error);
-        res.status(500).json({ error: "Ошибка при удалении категории и айтемов" });
-    }
-  };
-
-  static addCategory = async (req, res) => {
-    try {
-      console.log(req.body);
-      const { file } = req;
-      const { title } = req.body;
-
-      const categoryData = await CategorySchema.find({ name: title });
-
-      if (categoryData.length !== 0) {
-        return res
-          .status(500)
-          .json({ message: "Невозможно добавить категорию" });
+      if (!categoryId) {
+        return res.status(400).json({ message: "categoryId is not defined" });
       }
 
-      const imageUrl = "https://" + req.get("host") + "/" + file.filename;
+      const category = await CategorySсhema.findOne({ _id: categoryId });
 
-      const category = await new CategorySchema({
-        title: title,
-        image: imageUrl,
-      });
+      if (!category) {
+        return res.status(404).json({ message: "category not found" });
+      }
+
+      category.active = active;
 
       await category.save();
 
-      return res.status(200).json(category);
-    } catch (err) {
-      res.status(500).json({
-        error: "Возникла ошибка",
-      });
+      return res.json({ message: "category deleted successfully" });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: e.message });
     }
   };
 }

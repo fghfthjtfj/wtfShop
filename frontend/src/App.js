@@ -1,67 +1,68 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
-import { useLocation } from "react-router-dom";
-
-import Favorites from "./components/Favorites/Favorites";
-import Account from "./components/Account/Account";
-import Basket from "./components/Basket/Basket";
-import NoMatch from "./components/NoMatch/NoMatch";
-import Home from "./components/Home/Home";
-import Footer from "./components/Footer/Footer";
-import Header from "./components/Header/Header";
-import Status from "./components/Status/Status";
-import History from "./components/History/History";
-import CategoryItemsList from "./components/CategoryItemsList/CategoryItemsList";
-import EspeciallyForYouPage from "./components/EspeciallyForYouPage/EspeciallyForYouPage";
-import CardItemDetails from "./components/CardItemDetails/CardItemDetails";
-import Pay from "./components/Pay/Pay";
-import CategoriesList from "./components/CategoriesList/CategoriesList";
-import Notifications from "./components/Notifications/Notifications";
-import PlacingOrder from "./components/placingOrder/placingorder";
-import EditProfile from "./components/EditProfile/EditProfile";
-import NotFound from "./components/errors/notFound";
-import Review from "./components/Review/Review";
-import Search from "./components/Search/Search";
-
-let tg = window.Telegram.WebApp;
-tg.expand();
+import Header from "./components/Header/header";
+import Footer from "./components/Footer/footer";
+import Main from "./components/Main/main";
+import CategorySearch from "./components/CategorySearch/categorysearch";
+import CatalogArtist from "./components/CatalogArtist/catalogartist";
+import CatalogApplications from "./components/CatalogApplications/catalogapplications";
+import ApplicationDetails from "./components/ApplicationDetails/ApplicationDetails";
+import { useUser } from "./context/userContext";
+import ArtistDetails from "./components/ArtistDetail/artistDetails";
+import AddApplication from "./components/AddApplication/addApplication";
+import ApplicationDone from "./components/ApplicationDone/applicationDone";
+import MyApplications from "./components/Profile/myApplications";
+import AddMyApplication from "./components/Profile/addMyApplication";
+import AddArtistRequest from "./components/AddArtistRequest/addArtistRequest";
+import DoneArtistRequest from "./components/AddArtistRequest/doneArtistRequest";
+import MyRequest from "./components/Profile/myRequests";
+import AddMyRequest from "./components/Profile/addMyRequest";
+import EditMyApplication from "./components/Profile/myEditApplication";
+import Subscription from "./components/Subscription/subscription";
+import About from "./components/About/about";
+import Share from "./components/Share/share";
+import AddReview from "./components/AddReview/addReview";
+import ReviewDone from "./components/AddReview/reviewDone";
 
 function App() {
-  const location = useLocation();
-  const { pathname } = location;
-
+  const { user } = useUser();
+  console.log(user);
   return (
-    <div className="App bg-white h-full w-full">
-      {!pathname.includes("/categories/item-details/") ? <Header /> : ""}
+    <>
+      <Header />
       <Routes>
-        <Route exact path="/" element={<Home />} />
-        <Route exact path="/notifications" element={<Notifications />} />
-        <Route exact path="/favorites" element={<Favorites />} />
-        <Route exact path="/basket" element={<Basket />} />
-        <Route exact path="/account" element={<Account />} />
-        <Route exact path="/categories/*" element={<CategoryItemsList />} />
-        <Route exact path="/categories" element={<CategoriesList />} />
+        {user?.role === "artist" ? (
+          <Route exact path="/" element={<CatalogApplications />} />
+        ) : user?.role === "customer" ? (
+          <Route exact path="/" element={<CategorySearch />} />
+        ) : (
+          <Route exact path="/" element={<Main />} />
+        )}
+        <Route path="/category-artist" element={<CategorySearch />} />
+        <Route path="/catalog-artist" element={<CatalogArtist />} />
+        <Route path="/catalog-applications" element={<CatalogApplications />} />
         <Route
-          exact
-          path="/categories/item-details/*"
-          element={<CardItemDetails />}
+          path="/application-details/:id"
+          element={<ApplicationDetails />}
         />
-        <Route exact path="/account/history" element={<History />} />
-        <Route exact path="/account/history/review" element={<Review />} />
-        <Route exact path="/account/status" element={<Status />} />
-        <Route exact path="/account/edit" element={<EditProfile />} />
-        <Route
-          exact
-          path="/especially-for-you"
-          element={<EspeciallyForYouPage />}
-        />
-        <Route exact path="/basket/payment" element={<Pay />} />
-        <Route exact path="/basket/placingorder" element={<PlacingOrder />} />
-        <Route exact path="/search" element={<Search />} />
-        <Route exact path="/*" element={<NotFound />} />
+        <Route path="/artist/:id/:idCategory" element={<ArtistDetails />} />
+        <Route path="/add-application" element={<AddApplication />} />
+        <Route path="/application-done" element={<ApplicationDone />} />
+        <Route path="/my-applications" element={<MyApplications />} />
+        <Route path="/my-add-application" element={<AddMyApplication />} />
+        <Route path="/my-edit-application/:id" element={<EditMyApplication />} />
+        <Route path="/add-artist-request" element={<AddArtistRequest />} />
+        <Route path="/artist-request-done" element={<DoneArtistRequest />} />
+        <Route path="/my-add-request" element={<AddMyRequest />} />
+        <Route path="/my-requests" element={<MyRequest />} />
+        <Route path="/subscription" element={<Subscription />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/share" element={<Share />} />
+        <Route path="/addReview/:id" element={<AddReview />} />
+        <Route path="/review-done" element={<ReviewDone />} />
       </Routes>
-      {!pathname.includes("/categories/item-details/") ? <Footer /> : ""}
-    </div>
+      <Footer />
+    </>
   );
 }
 

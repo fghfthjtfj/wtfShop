@@ -1,73 +1,116 @@
-import Logo from "../../images/logo.svg";
-import Search from "../../images/search.svg";
-import On from "../../images/notification.svg";
-import notificationOn from "../../images/notification-on.svg";
-import Message from "../../images/message.svg";
-import { useState, useEffect } from "react";
-import axios from "../../axios.js";
-import { NavLink } from "react-router-dom";
-
-import "./header.css";
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useCategories } from '../../context/categoryContext';
+import Loader from '../UI/Loader/loader';
+import axios from "../../axios";
+import { useUser } from '../../context/userContext';
+import { useArtist } from "../../context/artistContext"
+import { useCities } from '../../context/citiesContext';
 
 const Header = () => {
-  const [haveNotifications, setNotifications] = useState();
-
   let tg = window.Telegram.WebApp;
+  let userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "703999322";
 
-  let userId = "";
+  const { categories, setCategories } = useCategories();
+  const { user, setUser } = useUser();
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingArtist, setLoadingArtist] = useState(true);
+  const { artist, setArtist } = useArtist()
 
-  if (!tg.initDataUnsafe.user) {
-    userId = "703999322";
-  } else {
-    userId = tg.initDataUnsafe.user?.id;
-  }
+  const {cities} = useCities()
+
+  const handleCityChange = (event) => {
+    const newCity = event.target.value;
+
+    if (user && user.telegramId) {
+      axios.patch("/selectcity", { telegramId: user.telegramId, setCitySearch: newCity })
+        .then(() => {
+          setUser(prevUser => ({ ...prevUser, setCitySearch: newCity }));
+          window.location.reload()
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    }
+  };
 
   useEffect(() => {
-    axios
-      .get(`/notifications`, { params: { telegramId: userId } })
-      .then((response) => {
-        setNotifications(
-          response.data.filter((el) => el.seen === false).length
-        );
-      })
-      .catch((error) => {
-        console.error("Ошибка при получении JSON файла", error);
-      });
-  }, []);
+    if (categories.length === 0 && user) {
+      axios.get("/category", {params: { city: user.setCitySearch}})
+        .then((res) => {
+          setCategories(res.data);
+          setLoadingCategories(false);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    } else {
+      setLoadingCategories(false);
+    }
+  }, [categories, setCategories, user]);
+
+  useEffect(() => {
+
+    if (!user) {
+      axios.get(`/user?telegramId=${userId}`)
+        .then((res) => {
+          setUser(res.data[0]);
+          setLoadingUser(false);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    } else {
+      setLoadingUser(false);
+    }
+  }, [user, setUser, userId]);
+
+  useEffect(() => {
+    if (user?.role === 'artist') {
+      axios.get(`/artist-request?artistId=${user._id}`)
+        .then((res) => {
+          setArtist(res.data[0]);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    } else {
+      setLoadingArtist(false);
+    }
+  }, [user, setUser, userId]);
+
+  if (loadingCategories || loadingUser || loadingArtist) {
+    return <Loader />;
+  }
 
   return (
-    <div className="flex justify-center align-center">
-      <div className="header w-[90%] h-[5%] flex items-center justify-between px-[6px]">
-        <div className="header-left-side flex justify-start align-center">
-          <img className="header-logo flex" src={Logo} />
-          <span className="company_name w-[30px] h-[50px] flex items-center font-bold">
-            World Transport Function
-          </span>
+    <div className='relative'>
+      <div className="h-[48px] shadow-custom flex justify-between items-center px-[16px] bg-white relative">
+        <div className="current_city flex justify-start w-1/3">
+          <select
+            value={user.setCitySearch}
+            onChange={(event) => handleCityChange(event)}
+            className="text-[12px] underline w-[110px]"
+          >
+            {cities.map((city, index) => (
+              <option key={index} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="header-right-side flex justify-end items-center align-center">
-          <NavLink className={'w-[35px] h-[35px] mr-[3px]'} to={"/search"}>
-            <div className="search-btn w-full h-full flex justify-center items-center">
-              <img className="search-btn" src={Search} />
-            </div>
-          </NavLink>
-          <NavLink to={"/notifications"}>
-            <div
-              className={`notifications-btn flex items-center align-center ${
-                haveNotifications > 0 ? "blacked-out" : ""
-              }`}
-            >
-              <img
-                className={"notifications-btn"}
-                src={haveNotifications > 0 ? notificationOn : On}
-              />
-            </div>
-          </NavLink>
-          <div className="message-btn">
-            <img className="message-btn" src={Message} />
-          </div>
+        <div className='absolute left-[50%] ml-[-38px] text-center'>
+          <Link to="/" className="text-[16px] font-bold w-max">
+            EVENTRA
+          </Link>
         </div>
+        {user.role && user.role !== "" && <Link to={`${user.role === 'customer' ? "/my-applications" : "my-requests"}`} className="text-[14px] flex justify-end font-bold w-1/3">
+          Мой профиль
+        </Link>}
       </div>
     </div>
+
   );
 };
 

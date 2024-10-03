@@ -1,98 +1,35 @@
-import { text } from "express";
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
 const OrderSchema = new mongoose.Schema({
-    items: [{
-        _id: {
-            type: mongoose.Schema.Types.ObjectId,
-            require: true,
-        },
-        itemId: {
-            type: mongoose.Schema.Types.ObjectId,
-            require: true,
-            ref: "Item"
-        },
-        status: {
-            type: Number,
-            require: true,
-            default: 1
-        },
-        track: {
-            type: String,
-            default: ""
-        },
-        approximateTime: {
-            type: mongoose.Schema.Types.Date,
-            require: true,
-        },
-        count: {
-            type: Number,
-            require: true
-        },
-        sizeId: {
-            type: mongoose.Schema.Types.ObjectId,
-            require: true,
-            ref: "Size"
-        },
-        size:{
-            type: String,
-            require: true
-        }
-    }],
-    name:{
-        type: String,
-        require: true,
+  customerRequestId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "CustomerRequest",
+    required: true,
+  },
+  artistRequestId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ArtistRequest",
+    required: true,
+  },
+  status: {
+    statusId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Status",
+      required: true,
     },
-    email:{
-        type: String,
-        require: true,
-    },
-    phoneNumber:{
-        type: String,
-        require: true
-    },
-    telegramLink:{
-        type: String,
-        require: true
-    },
-    dateOrder: {
-        type: mongoose.Schema.Types.Date,
-        require: true
-    },
-    totalPrice: {
-        type: Number,
-        require: true
-    },
-    country: {
-        type: String,
-        require: true
-    },
-    city: {
-        type: String,
-        require: true
-    },
-    reservePhoneNumber: {
-        type: String,
-        require: true
-    },
-    presentAdress: {
-        type: String,
-        require: true
-    },
-    apartmentNumber: {
-        type: String,
-        require: true
-    },
-    postalCode:{
-        type: String,
-        require: true
-    },
-    postalCodeReserve:{
-        type: String,
-    },
-    additionalInformation: {
-        type: String
+    comment: {
+      type: String,
+      required: false
     }
-})
+  },
+  isCustomerView : {
+    type: Boolean,
+    default: false
+  },
+  review: {
+    type: Boolean, 
+    default: false
+  }
+});
 
 export default mongoose.model("Order", OrderSchema);

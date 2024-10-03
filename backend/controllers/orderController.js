@@ -1,237 +1,309 @@
-import UserSchema from "../models/user.js";
 import OrderSchema from "../models/order.js";
+import StatusShema from "../models/status.js";
+import ArtistRequestSchema from "../models/artistRequest.js";
+import CustomerRequestSchema from "../models/customerRequest.js";
+import { mongoose } from "mongoose";
+import axios from "axios";
 
 export default class orderController {
-  static getOrderAccountInfo = async (req, res) => {
+  static addOrder = async (req, res) => {
     try {
-      const { orderIds } = req.query;
-      let orders = [];
+      const { artistId, customerRequestId } = req.body;
 
-      for (const id of orderIds) {
-        let order = await OrderSchema.findOne({ _id: id });
-        orders.push(order);
+      if (!artistId || !customerRequestId) {
+        return res
+          .status(400)
+          .json({ message: "Error, check  customerId, artistId " });
       }
 
-      return res.status(200).json(orders);
-    } catch (error) {}
-  };
+      const artistRequest = await ArtistRequestSchema.findOne({
+        artistId: artistId,
+      });
 
-  static getOrders = async (req, res) => {
-    try {
-      const { telegramId } = req.query;
+      const statusArtist = await StatusShema.findOne({ name: "Создан" });
 
-      const user = await UserSchema.findOne({ telegramId }).populate({
-        path: "orders",
-        populate: {
-          path: "items.itemId",
-          model: "Item",
-          populate: {
-            path: "category",
-            model: "Category",
-          },
+      const order = new OrderSchema({
+        artistRequestId: artistRequest._id,
+        customerRequestId: customerRequestId,
+        status: {
+          statusId: statusArtist._id,
         },
       });
 
-      if (!user) {
-        return res.status(404).json({ error: "Пользователь не найден" });
-      }
-
-      const orders = user.orders.map((order) => ({
-        orderId: order._id,
-        items: order.items.map((item) => ({
-          _id: item._id,
-          itemId: {
-            _id: item.itemId._id,
-            name: item.itemId.name,
-            category: {
-              _id: item.itemId.category._id, // Добавляем информацию о категории товара
-              title: item.itemId.category.title, // Добавляем информацию о категории товара
-            },
-            photos: item.itemId.photos,
-            price: item.itemId.price,
-            sale: item.itemId.sale,
-            deliveryTime: item.itemId.deliveryTime,
-            description: item.itemId.description,
-            reviews: item.itemId.reviews,
-          },
-          status: item.status,
-          track: item.track,
-          approximateTime: item.approximateTime,
-          count: item.count,
-          sizeId: item.sizeId,
-          size: item.size,
-        })),
-        name: order.name,
-        email: order.email,
-        phoneNumber: order.phoneNumber,
-        telegramLink: order.telegramLink,
-        dateOrder: order.dateOrder,
-        totalPrice: order.totalPrice,
-        country: order.country,
-        city: order.city,
-        reservePhoneNumber: order.reservePhoneNumber,
-        presentAdress: order.presentAdress,
-        apartmentNumber: order.apartmentNumber,
-        postalCode: order.postalCode,
-        postalCodeReserve: order.postalCodeReserve,
-        additionalInformation: order.additionalInformation,
-      }));
-
-      return res.status(200).json(orders);
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ error: "Возникла ошибка" });
-    }
-  };
-
-  static getOrderById = async (req, res) => {
-    try {
-      const orderId = req.query.orderId; // Получаем orderId из query string
-      // Проверяем, был ли передан orderId
-      if (!orderId) {
-        return res
-          .status(400)
-          .json({ error: "Необходимо предоставить orderId в query string" });
-      }
-
-      // Ищем ордер в базе данных по orderId
-      const order = await OrderSchema.findOne({ _id: orderId });
-
-      // Проверяем, найден ли ордер
-      if (!order) {
-        return res
-          .status(404)
-          .json({ error: "Ордер с указанным orderId не найден" });
-      }
-
-      // Отправляем найденный ордер в качестве ответа
-      res.status(200).json(order);
-    } catch (error) {
-      // Обрабатываем возможные ошибки
-      console.error("Ошибка при получении ордера:", error);
-      res.status(500).json({ error: "Произошла ошибка при получении ордера" });
-    }
-  };
-
-  static getAllOrders = async (req, res) => {
-    try {
-      const orders = await OrderSchema.find();
-
-      res.status(200).json(orders);
-    } catch (e) {
-      console.log(e);
-      res.status(500).json({ error: e, message: e.message });
-    }
-  };
-
-  static updateItemInOrder = async (req, res) => {
-    try {
-      const { orderId, itemId, track, status } = req.body;
-
-      const order = await OrderSchema.findOne({ _id: orderId });
-
-      if (!order) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-
-      const itemToUpdate = order.items.find((item) => item.itemId.toString() === itemId.toString());
-
-      if (!itemToUpdate) {
-        return res.status(404).json({ error: "Item not found in the order" });
-      }
-
-      itemToUpdate.track = track;
-      itemToUpdate.status = status;
-
       await order.save();
 
-      res.status(200).json(order);
+      return res.status(201).json(order);
     } catch (e) {
-      console.log(e);
-      res.status(500).json({ error: e, message: e.message });
+      console.error(e);
+      return res.status(500).json({ error: e.message });
     }
   };
 
-  static getOrder = async (req, res) => {};
-
-  static updateStatusOrder = async (req, res) => {
+  static getOrder = async (req, res) => {
     try {
-      const { orderId, status, itemId } = req.body;
+      const { customerRequestId, artistId, orderId, customerId } = req.query;
+
+      const artistRequest = await ArtistRequestSchema.findOne({
+        artistId: artistId,
+      });
+
+      const artistRequestId = artistRequest?._id;
+
+      let order;
+
+      if (orderId) {
+        order = await OrderSchema.findOne({ _id: orderId })
+          .populate({
+            path: "customerRequestId",
+            populate: [
+              {
+                path: "categoryId",
+                model: "Category", // Populate the categoryId in CustomerRequest
+              },
+              {
+                path: "customerId",
+                model: "User", // Populate the customerId in CustomerRequest
+              },
+            ],
+          })
+          .populate({
+            path: "artistRequestId",
+            populate: [
+              {
+                path: "categoryId",
+                model: "Category", // Populate the categoryId in ArtistRequest
+              },
+              {
+                path: "artistId",
+                model: "User", // Populate the artistId in ArtistRequest
+              },
+            ],
+          })
+          .populate("status.statusId");
+        return res.json(order);
+      }
+
+      // If an artistId is provided, find the order by artistRequestId and populate all fields including categories and user
+      if (artistId) {
+        order = await OrderSchema.find({ artistRequestId: artistRequestId })
+          .populate({
+            path: "customerRequestId",
+            populate: [
+              {
+                path: "categoryId",
+                model: "Category", // Populate the categoryId in CustomerRequest
+              },
+              {
+                path: "customerId",
+                model: "User", // Populate the customerId in CustomerRequest
+              },
+            ],
+          })
+          .populate({
+            path: "artistRequestId",
+            populate: [
+              {
+                path: "categoryId",
+                model: "Category", // Populate the categoryId in ArtistRequest
+              },
+              {
+                path: "artistId",
+                model: "User", // Populate the artistId in ArtistRequest
+              },
+            ],
+          })
+          .populate("status.statusId");
+        return res.json(order.filter((el) => el.customerRequestId !== null));
+      }
+
+      // If a customerRequestId is provided, find the order by customerRequestId and populate all fields including categories and user
+      if (customerRequestId) {
+        order = await OrderSchema.findOne({
+          customerRequestId: customerRequestId,
+        })
+          .populate({
+            path: "customerRequestId",
+            populate: [
+              {
+                path: "categoryId",
+                model: "Category", // Populate the categoryId in CustomerRequest
+              },
+              {
+                path: "customerId",
+                model: "User", // Populate the customerId in CustomerRequest
+              },
+            ],
+          })
+          .populate({
+            path: "artistRequestId",
+            populate: [
+              {
+                path: "categoryId",
+                model: "Category", // Populate the categoryId in ArtistRequest
+              },
+              {
+                path: "artistId",
+                model: "User", // Populate the artistId in ArtistRequest
+              },
+            ],
+          })
+          .populate("status.statusId");
+        return res.json(order.filter((el) => el.customerRequestId !== null));
+      }
+
+      const customerObjectId = new mongoose.Types.ObjectId(customerId);
+
+      if (customerId) {
+        const orders = await OrderSchema.find({ isCustomerView: true })
+          .populate({
+            path: "customerRequestId",
+            match: { customerId: customerObjectId },
+            populate: [
+              {
+                path: "categoryId",
+                model: "Category", // Populate the categoryId in CustomerRequest
+              },
+              {
+                path: "customerId",
+                model: "User", // Populate the customerId in CustomerRequest
+              },
+            ],
+          })
+          .populate({
+            path: "artistRequestId",
+            populate: [
+              {
+                path: "categoryId",
+                model: "Category", // Populate the categoryId in ArtistRequest
+              },
+              {
+                path: "artistId",
+                model: "User", // Populate the artistId in ArtistRequest
+              },
+            ],
+          })
+          .populate("status.statusId");
+
+        return res.json(orders.filter((el) => el.customerRequestId !== null));
+      }
+
+      return res.status(400).json({ error: "Invalid query parameters" });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ error: e.message });
+    }
+  };
+
+  static deleteOrder = async (req, res) => {
+    try {
+      const { orderId } = req.query;
+
+      if (!orderId) {
+        return res.status(400).json({ message: "orderId is not defined" });
+      }
+
+      const order = await OrderSchema.findOneAndDelete({ _id: orderId });
+
+      if (!order) {
+        return res.status(404).json({ message: "order not found" });
+      }
+
+      res.json({ message: "order deleted successfully" });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: e.message });
+    }
+  };
+
+  static updateOrder = async (req, res) => {
+    try {
+      const { status, orderId, customerRequestId } = req.body;
 
       const order = await OrderSchema.findOne({ _id: orderId });
 
       if (!order) {
-        return res.status(404).json({ error: "Заказ не найден" });
+        return res.status(404).json({ error: "order not found" });
       }
 
-      let itemFound = false;
-      for (let i = 0; i < order.items.length; i++) {
-        if (order.items[i]._id.toString() === itemId) {
-          order.items[i].status = status;
-          itemFound = true;
-          break;
+      order.status.statusId = status._id;
+
+      const { artistRequestId } = order;
+
+        const customerId = await CustomerRequestSchema.findOne({
+          _id: customerRequestId,
+        })
+          .select("customerId eventName")
+          .populate("customerId");
+
+        const artistId = await ArtistRequestSchema.findOne({
+          _id: artistRequestId,
+        })
+          .select("artistId")
+          .populate("artistId");
+
+      if (status.name !== "Отменён") {
+        if (status.name === "Завершён") {
+          try {
+            await axios.post(
+              `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+              {
+                chat_id: customerId.customerId.telegramId,
+                text: `<a href="https://t.me/${artistId.artistId.userName}">${artistId.artistId.firstName} ${artistId.artistId.lastName}</a> сообщил, что заказ завершен.\nПредлагаем оставить отзыв.`,
+                parse_mode: "HTML",
+              }
+            );
+          } catch (e) {
+            console.error(e);
+            return { error: e.message };
+          }
+        }
+
+        if (status.name === "Договор") {
+          try {
+            await axios.post(
+              `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+              {
+                chat_id: customerId.customerId.telegramId,
+                text: `Артист <a href="https://t.me/${artistId.artistId.userName}">${artistId.artistId.firstName} ${artistId.artistId.lastName}</a> по заявке ${customerId.eventName} перевел статус сделки в договор.\nЭто означает, что вы договорились об исполнении заказа. Если это не так свяжитесь с артистом, чтобы  уточнить условия или обратитесь в поддержку.`,
+                parse_mode: "HTML",
+              }
+            );
+          } catch (e) {
+            console.error(e);
+            return { error: e.message };
+          }
+        }
+
+        order.isCustomerView = true;
+        const requestCustomer = await CustomerRequestSchema.findOne({
+          _id: customerRequestId,
+        });
+        requestCustomer.order = true;
+        await requestCustomer.save();
+      }
+
+      if (status.name === "Отменён") {
+        try {
+          await axios.post(
+            `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+            {
+              chat_id: customerId.customerId.telegramId,
+              text: `Артист <a href="https://t.me/${artistId.artistId.userName}">${artistId.artistId.firstName} ${artistId.artistId.lastName}</a> отменил заявку.`,
+              parse_mode: "HTML",
+            }
+          );
+        } catch (e) {
+          console.error(e);
+          return { error: e.message };
         }
       }
 
-      if (!itemFound) {
-        return res.status(404).json({ error: "Товар в заказе не найден" });
-      }
-
       await order.save();
 
-      return res.status(200).json(order);
-    } catch (error) {
-      console.error(error);
+      return res.status(200).json({ order });
+    } catch (err) {
+      console.error(err);
       return res.status(500).json({ error: "Возникла ошибка" });
-    }
-  };
-
-  static addOrder = async (req, res) => {
-    try {
-      const user = await UserSchema.findOne({
-        telegramId: req.body.telegramId,
-      });
-
-      if (!user) {
-        return res.status(404).json({ message: "Ошибка получения информации" });
-      }
-
-      const order = await new OrderSchema({
-        reserveNumber: req.body.reserveNumber,
-        email: req.body.email,
-        country: req.body.country,
-        city: req.body.city,
-        presentAdress: req.body.presentAdress,
-        apartmentNumber: req.body.apartmentNumber,
-        postalCode: req.body.postalCode,
-        postalCodeReserve: req.body.postalCodeReserve,
-        additionalInformation: req.body.additionalInformation,
-        dateOrder: req.body.dateOrder,
-        totalPrice: req.body.totalPrice,
-        items: req.body.items,
-        name: req.body.name,
-        email: req.body.email,
-        phoneNumber: req.body.phoneNumber,
-        telegramLink: req.body.telegramLink,
-      });
-
-      await order.save();
-
-      const orderId = order._id;
-
-      user.orders.push(orderId);
-
-      user.cart = [];
-
-      user.save();
-
-      return res.status(200).json({
-        ...order,
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: "Возникла ошибка",
-      });
     }
   };
 }
